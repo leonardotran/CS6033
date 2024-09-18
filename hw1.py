@@ -39,13 +39,13 @@ def bfs(road_map, start, goal):
     if start not in road_map or goal not in road_map:
         return None, 0, 0
 
-    queue = deque([(start, [start], 0)]) 
+    queue = deque([(start, [start], 0)])
     visited = set()
     cities_visited = 0
 
     while queue:
         city, path, cost = queue.popleft()
-        
+
         if city in visited:
             continue
 
@@ -63,27 +63,24 @@ def bfs(road_map, start, goal):
 
 # Greedy Algorithm
 def greedy(road_map, start, goal, sld):
-    return None
+    return None, 0, 0
 
 # DFS Algorithm
 def dfs(graph, start, goal):
-   return None
+    return None, 0, 0
 
 def a_star(road_map, start, goal, heuristic_func):
-    # Priority queue: stores tuples of (f, current_city, path, g)
     priority_queue = [(heuristic_func(start, goal, road_map), start, [start], 0)]
-    visited = {}  # Dictionary to keep track of the best cost to reach a node
+    visited = {}
     cities_visited = 0
     
     while priority_queue:
         f, current_city, path, g = heapq.heappop(priority_queue)
-        
         if current_city == goal:
-            return path, g, cities_visited  
+            return path, g, cities_visited
         
         if current_city in visited and visited[current_city] <= g:
             continue
-        
         visited[current_city] = g
         cities_visited += 1
         
@@ -94,32 +91,35 @@ def a_star(road_map, start, goal, heuristic_func):
             if neighbor not in visited or visited[neighbor] > new_g:
                 heapq.heappush(priority_queue, (f, neighbor, path + [neighbor], new_g))
     
-
+    return None, None, cities_visited
 
 # Heuristic functions for A* algorithm
 def heuristic_with_bucharest(start, goal, road_map):
-    return sld.get(start, float('inf'))
+    heuristic_value = sld.get(start, float('inf'))
+    # print(f"Heuristic with Bucharest for {start}: {heuristic_value}")
+    return heuristic_value
 
-def heuristic_with_common_neighbor(start, goal, road_map):
+def heuristic_with_triangle_inequality(start, goal, road_map):
+    # Get neighbors of the start and goal cities
     neighbors_start = {neighbor for neighbor, _ in road_map[start]}
     neighbors_goal = {neighbor for neighbor, _ in road_map[goal]}
+    
     common_neighbors = neighbors_start.intersection(neighbors_goal)
     
     if common_neighbors:
-        common_city = next(iter(common_neighbors))
-        return sld.get(start, float('inf')) + sld.get(common_city, float('inf'))
+        min_common_neighbor_heuristic = min(sld.get(neighbor, float('inf')) for neighbor in common_neighbors)
+        heuristic_value = sld.get(start, float('inf')) - min_common_neighbor_heuristic
+    else:
+        if neighbors_start:
+            min_neighbor_heuristic = min(sld.get(neighbor, float('inf')) for neighbor in neighbors_start)
+            heuristic_value = sld.get(start, float('inf')) - min_neighbor_heuristic
+        else:
+            heuristic_value = sld.get(start, float('inf'))
     
-    if neighbors_start:
-        closest_city = next(iter(neighbors_start))
-        return sld.get(start, float('inf')) + sld.get(closest_city, float('inf'))
-    
-    return sld.get(start, float('inf'))
+    # print(f"Heuristic with Common Neighbor for {start}: {heuristic_value}")
+    return heuristic_value
 
-
-
-
-#GRAPHICAL USER INTERFACE FOR TERMINAL
-
+# GRAPHICAL USER INTERFACE FOR TERMINAL
 def main_menu():
     while True:
         print("\n")
@@ -159,16 +159,15 @@ def main_menu():
                 heuristic_func = heuristic_with_bucharest
                 heuristic_name = "Heuristic with Bucharest"
             elif heuristic_choice == '2':
-                heuristic_func = heuristic_with_common_neighbor
+                heuristic_func = heuristic_with_triangle_inequality
                 heuristic_name = "Heuristic with Common Neighbor"
             else:
                 print("\033[1;31mInvalid choice. Defaulting to Heuristic with Bucharest.\033[0m")
                 heuristic_func = heuristic_with_bucharest
                 heuristic_name = "Heuristic with Bucharest"
 
-            algorithm_name = "A*"
-            algorithm_func = lambda start, goal: run_a_star(start, goal, heuristic_func)
-        
+            algorithm_name = f"A* with {heuristic_name}"
+            algorithm_func = run_a_star
         elif choice == '4':
             algorithm_name = "Greedy"
             algorithm_func = run_greedy
@@ -179,22 +178,21 @@ def main_menu():
             print("\033[1;31mInvalid choice. Please enter a number between 1 and 5.\033[0m")
             continue
 
-        start_time = time.time()
-        if algorithm_name == "DFS":
-            result, total_cost, cities_visited, all_paths = algorithm_func(start_city, destination_city)
-            print(f"\033[1;32mDFS - Shortest path: {result}\033[0m")
-            print(f"\033[1;32mDFS - Total cost: {total_cost}\033[0m")
-            print(f"\033[1;32mDFS - Number of cities visited: {cities_visited}\033[0m")
+        print(f"\033[1;36mRunning {algorithm_name} algorithm...\033[0m")
+        
+        if algorithm_name.startswith("A*"):
+            path, cost, cities_visited = algorithm_func(start_city, destination_city, heuristic_func)
         else:
-            result, total_cost, cities_visited = algorithm_func(start_city, destination_city)
-            print(f"\033[1;32m{algorithm_name} - Shortest path: {result}\033[0m")
-            print(f"\033[1;32m{algorithm_name} - Total cost (distance): {total_cost} km\033[0m")
-            print(f"\033[1;32m{algorithm_name} - Number of cities visited: {cities_visited}\033[0m")
+            path, cost, cities_visited = algorithm_func(start_city, destination_city)
+        
+        if path:
+            print(f"\033[1;32mPath found: {' -> '.join(path)}\033[0m")
+            print(f"\033[1;32mTotal cost: {cost}\033[0m")
+            print(f"\033[1;32mCities visited: {cities_visited}\033[0m")
+        else:
+            print("\033[1;31mNo path found.\033[0m")
 
-        end_time = time.time()
-        print(f"\033[1;32m{algorithm_name} - Execution time: {end_time - start_time:.6f} seconds\033[0m")
-
-
+# Define run functions for each algorithm
 def run_bfs(start, goal):
     return bfs(road_map, start, goal)
 
@@ -207,5 +205,5 @@ def run_a_star(start, goal, heuristic_func):
 def run_greedy(start, goal):
     return greedy(road_map, start, goal, sld)
 
-if __name__ == "__main__":
-    main_menu()
+# Run the menu
+main_menu()
